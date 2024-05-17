@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                <meta charset="utf-8">
+                <title>D3 learning</title>
+        </head>
+        <body>
+
+<button onclick="showCountsBy(countsByHome)">Student count by home area</button>
+<button onclick="showCountsBy(countsByMajor)">Student count by major</button>
+<button onclick="showCountsBy(gpaByMajor)">Avg GPA by major</button>
+<button onclick="showCountsBy(creditsByYear)">Avg credits per year</button>
+
+<p>
+<svg id="barchart" width="800" height="300" />
+<br/>
+<button onclick="sortByWhatever((a,b) => a.count - b.count)">Sort by count</button>
+<button onclick="sortByWhatever((a,b) => d3.ascending(a.label, b.label))">Sort by name</button>
+<button onclick="startup()">Restore</button>
+<p>
+<input type="radio" id="bars" name="chart_type" value="barchart" onclick="changeToBarMode()" checked="yes">
+<label for="bars">Bar chart</label><br>
+<input type="radio" id="lines" name="chart_type" value="linechart" onclick="changeToLineMode()">
+<label for="lines">Line chart</label><br>
+
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+  var barStyle = true;
+  var countsByMajor = [
+    {"label": "I.T.", "count": 144},
+    {"label": "C.S.", "count": 97},
+    {"label": "I.S.", "count": 101}
+  ];
+  var countsByHome = [
+    {"label": "Hawaii", "count": 40},
+    {"label": "Asia", "count": 122},
+    {"label": "US Mainland", "count": 75},
+    {"label": "Other", "count": 27},
+    {"label": "Pacific", "count": 78}
+  ];
+  var gpaByMajor = [
+    {"label": "C.S.", "count": 3.5689},
+    {"label": "I.S.", "count": 3.2633},
+    {"label": "I.T.", "count": 3.2291}
+  ];
+  var creditsByYear = [
+    {"label": "2009", "count": 146.5},
+    {"label": "2010", "count": 153.2},
+    {"label": "2011", "count": 158.0},
+    {"label": "2012", "count": 149.5},
+    {"label": "2013", "count": 140.5},
+    {"label": "2014", "count": 134.2},
+    {"label": "2015", "count": 136.3},
+    {"label": "2016", "count": 124.9},
+    {"label": "2017", "count": 134.1},
+    {"label": "2018", "count": 143.8},
+    {"label": "2019", "count": 144.1}
+  ];
+
+  let currentQuery = countsByHome;
+  let maxY = currentQuery.reduce((a,b)=>a.count>b.count?a:b).count;
+
+  function changeToBarMode() {
+    barStyle = true;
+    startup();
+  }
+
+  function changeToLineMode() {
+    barStyle = false;
+    startup();
+  }
+
+  function showCountsBy(cq) {
+    currentQuery = cq;
+    maxY = currentQuery.reduce((a,b)=>a.count>b.count?a:b).count;
+    startup();
+  }
+
+  //FIXME sorting doesn't work for line charts
+  function sortByWhatever(func) {
+
+    panel.selectAll("path").remove();
+
+    currentQuery.sort(func);//TODO is this the right thing to do?
+
+    let xScale = d3.scaleLinear()
+      .domain([0,currentQuery.length-1])
+      .range([0,w-80])
+
+    panel.selectAll("rect")
+        .sort(func)
+        .transition()
+        .attr("x", (d, i) => xScale(i) + 25);
+
+    panel.selectAll("text")
+        .sort(func)
+        .transition()
+        .attr("x", (d, i) => xScale(i) + 50);
+
+    panel.selectAll("circle")
+        .sort(func)
+        .transition()
+        .attr("cx", (d, i) => xScale(i) + 50)
+        .on("end", () => {
+
+                let linez = d3.line()
+                    .x((d,i,n) => {+d3.select(n[i]).attr('cx')})
+                    .y((d,i,n) => {+d3.select(n[i]).attr('cy')});
+
+                panel.append("path")
+                    .attr("d", linez(panel.selectAll("circle")))
+                    .attr("fill", "none")
+                    .attr("stroke", "red");
+            });
+    //startup();
+        /*.then(function() {
+            alert("then!");
+
+            if (barStyle == false) {
+                let yScale = d3.scaleLinear()
+                    .domain([0.0,maxY])
+                    .range([0.0,h-100.0]);
+
+                let linez = d3.line()
+                    .x((d, i) => xScale(i) + 50)
+                    .y((d, i) => h-20-yScale(d.count));
+
+                panel.append("path")
+                    .attr("d", linez(currentQuery))
+                    .attr("fill", "none")
+                    .attr("stroke", "red");
+            }
+        });*/
+  }
+
+  var panel = d3.select("#barchart");
+
+  var h = parseInt(panel.attr("height"));
+  var w = parseInt(panel.attr("width"));
+
+  function startupBars() {
+    let bar = panel
+        .selectAll()
+        .data(currentQuery);
+
+    let cScale = d3.scaleLinear()
+      .domain([0,maxY])
+      .range(["yellow", "red"]);
+
+    let xScale = d3.scaleLinear()
+      .domain([0,currentQuery.length-1])
+      .range([0,w-80]);
+
+    let yScale = d3.scaleLinear()
+      .domain([0.0,maxY])
+      .range([0.0,h-100.0]);
+
+    panel.selectAll("rect").remove();
+    panel.selectAll("text").remove();
+    panel.selectAll("path").remove();
+    panel.selectAll("circle").remove();
+    bar.join("text")
+        .text((d) => d.label)
+        .attr('x', (d, i) => xScale(i) + 50)
+        .attr('text-anchor', 'middle')
+        .attr('y', h-5);
+
+    bar.join("rect")
+        .attr("height", (d, i) => yScale(d.count))
+        .attr("width",50 )
+        .attr("x", (d, i) => xScale(i) + 25)
+        .attr("y", (d, i) => h-20-yScale(d.count))
+        .attr("fill", d => cScale(d.count));
+  }
+
+  function startupLines() {
+    let bar = panel
+        .selectAll()
+        .data(currentQuery);
+
+    let xScale = d3.scaleLinear()
+      .domain([0,currentQuery.length-1])
+      .range([0,w-80]);
+
+    let yScale = d3.scaleLinear()
+      .domain([0.0,maxY])
+      .range([0.0,h-100.0]);
+
+    let linez = d3.line()
+      .x((d, i) => xScale(i) + 50)
+      .y((d, i) => h-20-yScale(d.count));
+
+    panel.selectAll("rect").remove();
+    panel.selectAll("text").remove();
+    panel.selectAll("path").remove();
+    panel.selectAll("circle").remove();
+    panel.append("path")
+        .attr("d", linez(currentQuery))
+        .attr("fill", "none")
+        .attr("stroke", "red");
+    bar.join("text")
+        .text((d) => d.label)
+        .attr('x', (d, i) => xScale(i) + 50)
+        .attr('text-anchor', 'middle')
+        .attr('y', h-5);
+    bar.join("circle")
+        .attr("fill", "red")
+        .attr("r",10)
+        .attr("cx", (d, i) => xScale(i) + 50)
+        .attr("cy", (d, i) => h-20-yScale(d.count));
+  }
+
+  function startup() {
+    countsByMajor = [
+        {"label": "I.T.", "count": 144},
+        {"label": "C.S.", "count": 97},
+        {"label": "I.S.", "count": 101}
+    ];
+    countsByHome = [
+        {"label": "Hawaii", "count": 40},
+        {"label": "Asia", "count": 122},
+        {"label": "US Mainland", "count": 75},
+        {"label": "Other", "count": 27},
+        {"label": "Pacific", "count": 78}
+    ];
+    gpaByMajor = [
+        {"label": "C.S.", "count": 3.5689},
+        {"label": "I.S.", "count": 3.2633},
+        {"label": "I.T.", "count": 3.2291}
+    ];
+    creditsByYear = [
+        {"label": "2009", "count": 146.5},
+        {"label": "2010", "count": 153.2},
+        {"label": "2011", "count": 158.0},
+        {"label": "2012", "count": 149.5},
+        {"label": "2013", "count": 140.5},
+        {"label": "2014", "count": 134.2},
+        {"label": "2015", "count": 136.3},
+        {"label": "2016", "count": 124.9},
+        {"label": "2017", "count": 134.1},
+        {"label": "2018", "count": 143.8},
+        {"label": "2019", "count": 144.1}
+    ];
+
+    if (barStyle == true) {
+        startupBars();
+    } else {
+        startupLines();
+    }
+  }
+
+  startup();
+
+</script>
+</body>
+</html>

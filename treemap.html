@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                <meta charset="utf-8">
+                <title>TreeMap Try</title>
+        </head>
+        <body>
+
+<input type="file" id="filepicker" name="fileList" webkitdirectory multiple />
+<svg id="treemap" width="800" height="600" />
+<ul id="listing"></ul>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const HORIZONTAL = 0;
+const VERTICAL = 1;
+
+class Node {
+    constructor(f) {
+      this.kids = new Map();
+      this.mypath = f;
+      this.size = 0;
+    }
+
+    hasChildWithName(nom) {
+      return this.kids.has(nom);
+    }
+
+    getChildByName(nom) {
+      return this.kids.get(nom);
+    }
+
+    addChild(nod) {
+      this.kids.set(nod.mypath, nod);
+    }
+
+    print() {
+      let page = document.getElementById("listing");
+      if (this.kids.size == 0) {
+        let item = document.createElement("li");
+        item.textContent = "I'm a leaf! " + this.mypath + " (" + this.size + " bytes)";
+        page.appendChild(item);
+      } else {
+        let item = document.createElement("li");
+        item.textContent = "I'm a parent! " + this.mypath + " (" + this.size + " bytes)";
+        page.appendChild(item);
+        for (const [keyPath, valueNode] of this.kids) {
+          valueNode.print();
+        }
+      }
+    }
+
+    addUpKids_hack() {
+      if (this.kids.size != 0) {
+        for (const [keyPath, valueNode] of this.kids) {
+          this.size += valueNode.addUpKids_hack();
+        }
+      }
+      return this.size;
+    }
+
+    draw(rectX, rectY, rectW, rectH, orientation) {
+      let top = rectY;
+      let bottom = rectY+rectH;
+      let left = rectX;
+      let right = rectX+rectW;
+      if (this.kids.size == 0) {
+        let tmp = "Child! " + this.mypath + " (" + rectX + "," + rectY + "," + rectW + "," + rectH + ")";
+        console.log(tmp);
+        d3.select("#treemap")
+        .append("rect")
+        .attr("x", rectX)
+        .attr("y", rectY)
+        .attr("width", rectW)
+        .attr("height", rectH)
+        .attr("fill", "#" + Math.floor(Math.random()*16777215).toString(16))
+        .append("title") // TITLE APPENDED HERE
+        .text(this.mypath);//function(d) { return d.value; });
+      } else {
+        let tmp = "Parent! " + this.mypath + " (" + rectX + "," + rectY + "," + rectW + "," + rectH + ")";
+        console.log(tmp);
+        if (orientation == HORIZONTAL) {
+          let pixelsPerByte = rectW / this.size;
+          let x = rectX;
+          for (const [keyPath, valueNode] of this.kids) {
+            var pixelsForChild = valueNode.size * pixelsPerByte;
+            valueNode.draw(x, rectY, pixelsForChild, rectH, VERTICAL);
+            x += pixelsForChild;
+          }
+        } else {
+          let pixelsPerByte = rectH / this.size;
+          let y = rectY;
+          for (const [keyPath, valueNode] of this.kids) {
+            var pixelsForChild = valueNode.size * pixelsPerByte;
+            valueNode.draw(rectX, y, rectW, pixelsForChild, HORIZONTAL);
+            y += pixelsForChild;
+          }
+        }
+      }
+
+
+    }
+
+
+}
+    document.getElementById("filepicker").addEventListener(
+  "change",
+  (event) => {
+    let output = document.getElementById("listing");
+    const root = new Node(event.target.files[0].webkitRelativePath.split("/")[0]);
+    //let item = document.createElement("li");
+    //item.textContent = "ROOT! " + root.mypath;
+    //output.appendChild(item);
+    for (const file of event.target.files) {
+      let splitPath = file.webkitRelativePath.split("/");
+      let currentNode = root;
+      let fullPath = splitPath[0];
+      for (let i=1; i<splitPath.length; i++) {
+        fullPath = fullPath+"/"+splitPath[i];
+        if (currentNode.hasChildWithName(fullPath)) {
+          currentNode = currentNode.getChildByName(fullPath);
+        } else {
+          let newNode = new Node(fullPath);
+          currentNode.addChild(newNode);
+          currentNode = newNode;
+          if (i==splitPath.length-1) {
+            //leaf node
+            currentNode.size = file.size;
+          }
+        }
+      }
+    }
+    const totalBytes = root.addUpKids_hack();//Ideally, I'd do this WHILE we're creating the tree. Fix that later.
+    //root.print();
+    let foo1 = document.getElementById("treemap");
+    const svgWidth = foo1.getAttribute("width");
+    const svgHeight = foo1.getAttribute("height");
+    root.draw(0,0,svgWidth,svgHeight, HORIZONTAL);
+  },
+  false,
+);
+</script>
