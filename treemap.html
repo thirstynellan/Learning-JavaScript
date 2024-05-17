@@ -14,6 +14,18 @@
 const HORIZONTAL = 0;
 const VERTICAL = 1;
 
+function prettyBytes(num) {
+  if (num < 1024) {
+    return num.toFixed(2) + " bytes";
+  } else if (num < 1048576) {
+    return (num/1024).toFixed(2) + " KB";
+  } else if (num < 1073741824) {
+    return (num/1048576).toFixed(2) + " MB";
+  } else {
+    return (num/1073741824).toFixed(2) + " GB";
+  }
+}
+
 class Node {
     constructor(f) {
       this.kids = new Map();
@@ -74,7 +86,7 @@ class Node {
         .attr("height", rectH)
         .attr("fill", "#" + Math.floor(Math.random()*16777215).toString(16))
         .append("title") // TITLE APPENDED HERE
-        .text(this.mypath);//function(d) { return d.value; });
+        .text(this.mypath + "(" + prettyBytes(this.size) + ")");//function(d) { return d.value; });
       } else {
         let tmp = "Parent! " + this.mypath + " (" + rectX + "," + rectY + "," + rectW + "," + rectH + ")";
         console.log(tmp);
